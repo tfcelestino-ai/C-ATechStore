@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-ao">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Pedidos - C & A TechStore</title>
+    <link rel="stylesheet" href="estilo.css">
+    <style>
+        .login-box {
+            background: white;
+            max-width: 350px;
+            margin: 3rem auto;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .login-box input {
+            width: 100%;
+            padding: 0.6rem;
+            margin-top: 0.6rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .login-box button { width: 100%; margin-top: 1rem; }
+        #erroLogin { color: #d32f2f; text-align: center; margin-top: 0.8rem; }
+
+        #painel { display: none; }
+        .topo-admin {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        #sair { background-color: #d32f2f; color: white; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 0.7rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 0.92rem;
+        }
+        th {
+            background-color: #1a237e;
+            color: white;
+        }
+        tr:hover { background-color: #f5f5f5; }
+        .status-pendente { color: #f57f17; font-weight: bold; }
+        .status-concluido { color: #2e7d32; font-weight: bold; }
+        .vazio { text-align: center; padding: 2rem; color: #777; }
+
+        /* Em ecrã pequeno, tabela vira scroll horizontal */
+        .tabela-wrap { overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <header><h1>C & A TechStore - Painel Admin</h1></header>
+
+    <main>
+        <!-- LOGIN -->
+        <div class="login-box" id="loginBox">
+            <h2 style="text-align:center;">Login Admin</h2>
+            <input type="email" id="email" placeholder="E-mail">
+            <input type="password" id="senha" placeholder="Palavra-passe">
+            <button id="btnLogin">Entrar</button>
+            <p id="erroLogin"></p>
+        </div>
+
+        <!-- PAINEL -->
+        <div id="painel">
+            <div class="topo-admin">
+                <h2>Pedidos Recebidos</h2>
+                <button id="sair">Sair</button>
+            </div>
+
+            <div class="tabela-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Nome</th>
+                            <th>Endereço</th>
+                            <th>Telefone</th>
+                            <th>Produto</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabela">
+                        <tr><td colspan="6" class="vazio">A carregar...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer><p>&copy; 2026 C & A TechStore - Todos os direitos reservados</p></footer>
+
+    <script type="module">
+        import { auth, db } from "./firebase-config.js";
+        import { signInWithEmailAndPassword, signOut, onAuthStateChanged }
+            from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { collection, query, orderBy, onSnapshot }
+            from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const loginBox = document.getElementById("loginBox");
+        const painel = document.getElementById("painel");
+        const erroLogin = document.getElementById("erroLogin");
+        const corpoTabela = document.getElementById("corpoTabela");
+
+        // Login
+        document.getElementById("btnLogin").addEventListener("click", async () => {
+            const email = document.getElementById("email").value.trim();
+            const senha = document.getElementById("senha").value;
+            erroLogin.textContent = "";
+            try {
+                await signInWithEmailAndPassword(auth, email, senha);
+            } catch (err) {
+                erroLogin.textContent = "E-mail ou palavra-passe incorretos.";
+            }
+        });
+
+        // Sair
+        document.getElementById("sair").addEventListener("click", () => signOut(auth));
+
+        // Controla o que é mostrado consoante o login
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                loginBox.style.display = "none";
+                painel.style.display = "block";
+                carregarPedidos();
+            } else {
+                loginBox.style.display = "block";
+                painel.style.display = "none";
+            }
+        });
+
+        function formatarData(timestamp) {
+            if (!timestamp) return "—";
+            const d = timestamp.toDate();
+            return d.toLocaleDateString("pt-PT") + " " + d.toLocaleTimeString("pt-PT", {hour: "2-digit", minute:"2-digit"});
+        }
+
+        function carregarPedidos() {
+            const q = query(collection(db, "pedidos"), orderBy("data", "desc"));
+            onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    corpoTabela.innerHTML = '<tr><td colspan="6" class="vazio">Ainda não há pedidos.</td></tr>';
+                    return;
+                }
+                corpoTabela.innerHTML = "";
+                snapshot.forEach((doc) => {
+                    const p = doc.data();
+                    const statusClasse = p.status === "concluido" ? "status-concluido" : "status-pendente";
+                    const linha = document.createElement("tr");
+                    linha.innerHTML = `
+                        <td>${formatarData(p.data)}</td>
+                        <td>${p.nome || "—"}</td>
+                        <td>${p.endereco || "—"}</td>
+                        <td>${p.telefone || "—"}</td>
+                        <td>${p.produto || "—"}</td>
+                        <td class="${statusClasse}">${p.status || "pendente"}</td>
+                    `;
+                    corpoTabela.appendChild(linha);
+                });
+            }, (err) => {
+                corpoTabela.innerHTML = '<tr><td colspan="6" class="vazio">Erro ao carregar pedidos.</td></tr>';
+                console.error(err);
+            });
+        }
+    </script>
+</body>
+</html>
