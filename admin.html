@@ -1,4 +1,4 @@
-        <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-ao">
 <head>
     <meta charset="UTF-8">
@@ -56,6 +56,17 @@
         .status-concluido { color: #2e7d32; font-weight: bold; }
         .vazio { text-align: center; padding: 2rem; color: #777; }
 
+        .btn-status {
+            padding: 0.4rem 0.7rem;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-status.marcar-concluido { background-color: #2e7d32; color: white; }
+        .btn-status.marcar-pendente { background-color: #9e9e9e; color: white; }
+
         /* Em ecrã pequeno, tabela vira scroll horizontal */
         .tabela-wrap { overflow-x: auto; }
     </style>
@@ -90,10 +101,11 @@
                             <th>Telefone</th>
                             <th>Produto</th>
                             <th>Status</th>
+                            <th>Ação</th>
                         </tr>
                     </thead>
                     <tbody id="corpoTabela">
-                        <tr><td colspan="6" class="vazio">A carregar...</td></tr>
+                        <tr><td colspan="7" class="vazio">A carregar...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -106,7 +118,7 @@
         import { auth, db } from "./firebase-config.js";
         import { signInWithEmailAndPassword, signOut, onAuthStateChanged }
             from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { collection, query, orderBy, onSnapshot }
+        import { collection, query, orderBy, onSnapshot, doc, updateDoc }
             from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const loginBox = document.getElementById("loginBox");
@@ -128,6 +140,22 @@
 
         // Sair
         document.getElementById("sair").addEventListener("click", () => signOut(auth));
+
+        // Muda o status do pedido (pendente <-> concluído)
+        corpoTabela.addEventListener("click", async (e) => {
+            const botao = e.target.closest(".btn-status");
+            if (!botao) return;
+            const id = botao.dataset.id;
+            const novoStatus = botao.dataset.novoStatus;
+            botao.disabled = true;
+            try {
+                await updateDoc(doc(db, "pedidos", id), { status: novoStatus });
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao atualizar o status. Tenta novamente.");
+                botao.disabled = false;
+            }
+        });
 
         // Controla o que é mostrado consoante o login
         onAuthStateChanged(auth, (user) => {
@@ -159,7 +187,7 @@
             const q = query(collection(db, "pedidos"), orderBy("data", "desc"));
             onSnapshot(q, (snapshot) => {
                 if (snapshot.empty) {
-                    corpoTabela.innerHTML = '<tr><td colspan="6" class="vazio">Ainda não há pedidos.</td></tr>';
+                    corpoTabela.innerHTML = '<tr><td colspan="7" class="vazio">Ainda não há pedidos.</td></tr>';
                     return;
                 }
                 corpoTabela.innerHTML = "";
@@ -167,6 +195,9 @@
                     const p = doc.data();
                     const statusClasse = p.status === "concluido" ? "status-concluido" : "status-pendente";
                     const linha = document.createElement("tr");
+                    const proximoStatus = p.status === "concluido" ? "pendente" : "concluido";
+                    const textoBotao = p.status === "concluido" ? "Marcar pendente" : "Marcar concluído";
+                    const classeBotao = p.status === "concluido" ? "marcar-pendente" : "marcar-concluido";
                     linha.innerHTML = `
                         <td>${formatarData(p)}</td>
                         <td>${p.nome || "—"}</td>
@@ -174,11 +205,12 @@
                         <td>${p.telefone || "—"}</td>
                         <td>${p.produto || "—"}</td>
                         <td class="${statusClasse}">${p.status || "pendente"}</td>
+                        <td><button class="btn-status ${classeBotao}" data-id="${doc.id}" data-novo-status="${proximoStatus}">${textoBotao}</button></td>
                     `;
                     corpoTabela.appendChild(linha);
                 });
             }, (err) => {
-                corpoTabela.innerHTML = '<tr><td colspan="6" class="vazio">Erro ao carregar pedidos.</td></tr>';
+                corpoTabela.innerHTML = '<tr><td colspan="7" class="vazio">Erro ao carregar pedidos.</td></tr>';
                 console.error(err);
             });
         }
