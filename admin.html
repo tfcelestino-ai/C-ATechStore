@@ -1,179 +1,134 @@
-<!DOCTYPE html>
+    <<!DOCTYPE html>
 <html lang="pt-ao">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Pedidos - C & A TechStore</title>
+    <title>Fazer Pedido - C & A TechStore</title>
     <link rel="stylesheet" href="estilo.css">
     <style>
-        .login-box {
+        .form-pedido {
             background: white;
-            max-width: 350px;
-            margin: 3rem auto;
+            max-width: 500px;
+            margin: 0 auto;
             padding: 1.5rem;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .login-box input {
+        .form-pedido label {
+            display: block;
+            margin-top: 1rem;
+            font-weight: bold;
+            color: #1a237e;
+        }
+        .form-pedido input, .form-pedido select {
             width: 100%;
             padding: 0.6rem;
-            margin-top: 0.6rem;
+            margin-top: 0.3rem;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
-        .login-box button { width: 100%; margin-top: 1rem; }
-        #erroLogin { color: #d32f2f; text-align: center; margin-top: 0.8rem; }
-
-        #painel { display: none; }
-        .topo-admin {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        #sair { background-color: #d32f2f; color: white; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        .form-pedido button {
             margin-top: 1.5rem;
-            background: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 100%;
         }
-        th, td {
-            padding: 0.7rem;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-            font-size: 0.92rem;
+        #msg {
+            text-align: center;
+            margin-top: 1rem;
+            font-weight: bold;
         }
-        th {
-            background-color: #1a237e;
-            color: white;
-        }
-        tr:hover { background-color: #f5f5f5; }
-        .status-pendente { color: #f57f17; font-weight: bold; }
-        .status-concluido { color: #2e7d32; font-weight: bold; }
-        .vazio { text-align: center; padding: 2rem; color: #777; }
-
-        /* Em ecrã pequeno, tabela vira scroll horizontal */
-        .tabela-wrap { overflow-x: auto; }
     </style>
 </head>
 <body>
-    <header><h1>C & A TechStore - Painel Admin</h1></header>
+    <header><h1>C & A TechStore</h1></header>
+    <nav>
+        <a href="index.html">Início</a>
+        <a href="produtos.html">Produtos</a>
+        <a href="galeria.html">Galeria</a>
+        <a href="sobre.html">Sobre</a>
+        <a href="contato.html">Contato</a>
+    </nav>
 
     <main>
-        <!-- LOGIN -->
-        <div class="login-box" id="loginBox">
-            <h2 style="text-align:center;">Login Admin</h2>
-            <input type="email" id="email" placeholder="E-mail">
-            <input type="password" id="senha" placeholder="Palavra-passe">
-            <button id="btnLogin">Entrar</button>
-            <p id="erroLogin"></p>
-        </div>
+        <h2>Fazer Pedido</h2>
+        <form class="form-pedido" id="formPedido">
+            <label for="produto">Produto</label>
+            <select id="produto" required>
+                <option value="">-- Escolhe um produto --</option>
+                <option value="Celular Smart Pro">Celular Smart Pro - Kz 145.000</option>
+                <option value="Notebook Ultra">Notebook Ultra - Kz 280.000</option>
+                <option value="Fone Bluetooth">Fone Bluetooth - Kz 35.000</option>
+                <option value="Smartwatch">Smartwatch - Kz 42.000</option>
+            </select>
 
-        <!-- PAINEL -->
-        <div id="painel">
-            <div class="topo-admin">
-                <h2>Pedidos Recebidos</h2>
-                <button id="sair">Sair</button>
-            </div>
+            <label for="nome">Nome completo</label>
+            <input type="text" id="nome" required>
 
-            <div class="tabela-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Nome</th>
-                            <th>Endereço</th>
-                            <th>Telefone</th>
-                            <th>Produto</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="corpoTabela">
-                        <tr><td colspan="6" class="vazio">A carregar...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            <label for="endereco">Endereço de entrega</label>
+            <input type="text" id="endereco" required>
+
+            <label for="telefone">Número de telefone</label>
+            <input type="tel" id="telefone" required placeholder="9XX XXX XXX">
+
+            <label for="dataPedido">Data do pedido</label>
+            <input type="date" id="dataPedido" required>
+
+            <button type="submit">Pedir</button>
+            <p id="msg"></p>
+        </form>
     </main>
 
     <footer><p>&copy; 2026 C & A TechStore - Todos os direitos reservados</p></footer>
 
     <script type="module">
-        import { auth, db } from "./firebase-config.js";
-        import { signInWithEmailAndPassword, signOut, onAuthStateChanged }
-            from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { collection, query, orderBy, onSnapshot }
+        import { db } from "./firebase-config.js";
+        import { collection, addDoc, serverTimestamp }
             from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        const loginBox = document.getElementById("loginBox");
-        const painel = document.getElementById("painel");
-        const erroLogin = document.getElementById("erroLogin");
-        const corpoTabela = document.getElementById("corpoTabela");
+        // Se veio de produtos.html com ?produto=NomeDoProduto, pré-seleciona
+        const params = new URLSearchParams(window.location.search);
+        const produtoParam = params.get("produto");
+        if (produtoParam) {
+            const select = document.getElementById("produto");
+            for (const opt of select.options) {
+                if (opt.value === produtoParam) opt.selected = true;
+            }
+        }
 
-        // Login
-        document.getElementById("btnLogin").addEventListener("click", async () => {
-            const email = document.getElementById("email").value.trim();
-            const senha = document.getElementById("senha").value;
-            erroLogin.textContent = "";
+        // Preenche a data do pedido automaticamente com o dia de hoje
+        const campoData = document.getElementById("dataPedido");
+        const hoje = new Date();
+        const hojeFormatado = hoje.toISOString().split("T")[0];
+        campoData.value = hojeFormatado;
+
+        const form = document.getElementById("formPedido");
+        const msg = document.getElementById("msg");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            msg.style.color = "#333";
+            msg.textContent = "A enviar pedido...";
+
+            const pedido = {
+                produto: document.getElementById("produto").value,
+                nome: document.getElementById("nome").value.trim(),
+                endereco: document.getElementById("endereco").value.trim(),
+                telefone: document.getElementById("telefone").value.trim(),
+                dataPedido: document.getElementById("dataPedido").value,
+                data: serverTimestamp(),
+                status: "pendente"
+            };
+
             try {
-                await signInWithEmailAndPassword(auth, email, senha);
+                await addDoc(collection(db, "pedidos"), pedido);
+                msg.style.color = "green";
+                msg.textContent = "Pedido enviado com sucesso! Entraremos em contacto em breve.";
+                form.reset();
             } catch (err) {
-                erroLogin.textContent = "E-mail ou palavra-passe incorretos.";
-            }
-        });
-
-        // Sair
-        document.getElementById("sair").addEventListener("click", () => signOut(auth));
-
-        // Controla o que é mostrado consoante o login
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                loginBox.style.display = "none";
-                painel.style.display = "block";
-                carregarPedidos();
-            } else {
-                loginBox.style.display = "block";
-                painel.style.display = "none";
-            }
-        });
-
-        function formatarData(timestamp) {
-            if (!timestamp) return "—";
-            const d = timestamp.toDate();
-            return d.toLocaleDateString("pt-PT") + " " + d.toLocaleTimeString("pt-PT", {hour: "2-digit", minute:"2-digit"});
-        }
-
-        function carregarPedidos() {
-            const q = query(collection(db, "pedidos"), orderBy("data", "desc"));
-            onSnapshot(q, (snapshot) => {
-                if (snapshot.empty) {
-                    corpoTabela.innerHTML = '<tr><td colspan="6" class="vazio">Ainda não há pedidos.</td></tr>';
-                    return;
-                }
-                corpoTabela.innerHTML = "";
-                snapshot.forEach((doc) => {
-                    const p = doc.data();
-                    const statusClasse = p.status === "concluido" ? "status-concluido" : "status-pendente";
-                    const linha = document.createElement("tr");
-                    linha.innerHTML = `
-                        <td>${formatarData(p.data)}</td>
-                        <td>${p.nome || "—"}</td>
-                        <td>${p.endereco || "—"}</td>
-                        <td>${p.telefone || "—"}</td>
-                        <td>${p.produto || "—"}</td>
-                        <td class="${statusClasse}">${p.status || "pendente"}</td>
-                    `;
-                    corpoTabela.appendChild(linha);
-                });
-            }, (err) => {
-                corpoTabela.innerHTML = '<tr><td colspan="6" class="vazio">Erro ao carregar pedidos.</td></tr>';
                 console.error(err);
-            });
-        }
+                msg.style.color = "#d32f2f";
+                msg.textContent = "Erro ao enviar pedido. Tenta novamente.";
+            }
+        });
     </script>
 </body>
 </html>
